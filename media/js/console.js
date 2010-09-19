@@ -49,4 +49,38 @@ $(function(){
 		$(this).toggleClass('call-out');
 	} );
 
+	// Added by Charles Grunwald (Juntalis)
+	/* 	It was going to slow with my first implementation of the filter, so
+		I did it this way to improve the speed.
+	 */
+	var _entries = {
+		'all'		: $("div.entry"),
+		'debug' 	: $("div.debug"),
+		'not_debug'	: $("div.info").add("div.error"),
+		'info'		: $("div.info"),
+		'not_info'	: $("div.debug").add("div.error"),
+		'error' 	: $("div.error"),
+		'not_error'	: $("div.debug").add("div.info")
+	};
+	//var _debugEntries = ;
+	var _infoEntries = $("div.debug");
+	var _errorEntries = $("div.debug");
+	$('#current > a').each(function(){
+		$(this).click(function(){
+			if ($(this).attr('href')=="#current") {
+				return false;
+			}
+
+			var _filter = $(this).attr('id');
+			if(_filter != 'all') {
+				_entries['not_' + _filter].css('display','none');
+			}
+			_entries[_filter].css('display','block');
+			var _newhref = $("#current > a[href=#current]").attr('id');
+			$("#current > a[href=#current]").attr('href', '#' + _newhref);
+			$(this).attr('href', '#current');
+			return false;
+		})
+	});
+
 });

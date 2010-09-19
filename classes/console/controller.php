@@ -69,7 +69,7 @@ class Console_Controller extends Kohana_Controller_Template
 		if( $file )
 		{
 			$path = pathinfo($file);
-			$file = Kohana::find_file($this->dir, $path['dirname'] . DIRECTORY_SEPARATOR . $path['filename'], $path['extension'] );
+			$file = Kohana::find_file($this->dir, $path['dirname'] . DIRECTORY_SEPARATOR . $path['filename']);
 
 			if( $file )
 			{
@@ -97,9 +97,41 @@ class Console_Controller extends Kohana_Controller_Template
 	 */
 	protected function parse( $text )
 	{
-		// Remove the first to lines
-		$log = explode( "\n", $text );
-		$log = array_slice( $log, 2 );
+		// Parse out the times and then split by them.
+		preg_match_all('/\d{4}-\d\d-\d\d\ (\d\d:\d\d:\d\d)\ ---\ /mx', $text, $times, PREG_PATTERN_ORDER);
+		$times = $times[1];
+		$lines = preg_split('/\d{4}-\d\d-\d\d\ \d\d:\d\d:\d\d\ ---\ /mx', $text);
+		$lines = array_slice( $lines, 1 );
+		$log = array();
+		foreach($lines as $i => $line) {
+			if (preg_match('/^(\w+): (.+)$/sm', $line, $s_parts)) {
+				$header = $s_parts[1];
+				$details = trim($s_parts[2]);
+				if (preg_match('/^([a-z_\-]+) ?(?:\[ ?(\-?\d+) ?\])?: ?(.*)$/si', $details, $s_parts)) {
+					$details = '<div class="class">' . $s_parts[1];
+					$details .= empty($s_parts[2]) ? '</div>' : ' (' . $s_parts[2] . ')</div>';
+					if (preg_match('/^(.*) \[ ?(\d+) ?\]$/s', $s_parts[3], $s_details)) {
+						$details .= "\n<p>" . $s_details[1] . "</p>";
+						$details .= "\n<p style=\"text-align:right;font-weight:bold;margin-bottom:0;\">(Line #" . $s_details[2] . ")</strong>";
+					} else {
+						$details .= "\n<p>" . $s_parts[3] . "</p>";
+					}
+				} else {
+					if (preg_match('/^(.*) \[ ?(\d+) ?\]$/s', $details, $s_parts)) {
+						$details .= "\n<p>" . $s_parts[1] . "</p>";
+						$details .= "\n<p style=\"text-align:right;font-weight:bold;\">(Line #" . $s_parts[2] . ")</strong>";
+					}
+				}
+				array_push($log, array(
+					// Set the time.
+					'time' => date("g:i:s A", strtotime($times[$i])),
+					// Then the header.
+					'header' => $header,
+					// And finally, the details.
+					'details' => $details,
+				));
+			}
+		}
 
 		return  View::factory('console/entry')->set('log', $log)->render();
 	}
@@ -121,7 +153,6 @@ class Console_Controller extends Kohana_Controller_Template
 
 			// Get the active file info
 			$active = ($file) ? pathinfo( $file ) : NULL;
-
 			krsort($logs);
 
 			foreach( $logs as $years => $months )
@@ -135,8 +166,11 @@ class Console_Controller extends Kohana_Controller_Template
 					foreach( $files as $file => $path )
 					{
 						list( $logs, $year, $month, $fn ) = explode( DIRECTORY_SEPARATOR, $file );
+						
 						$day = explode('.', $fn);
 						$dir[$year][$month][$day[0]] = str_replace($this->dir . DIRECTORY_SEPARATOR, '', $file);
+						$dir[$year][$month][$day[0]] = str_replace(DIRECTORY_SEPARATOR, '/', $dir[$year][$month][$day[0]]);
+						$dir[$year][$month][$day[0]] = str_replace('.php', '', $dir[$year][$month][$day[0]]);
 					}
 
 				}
